@@ -33,7 +33,7 @@ const Signin = () => {
         setErrorMessage(data.message || "Invalid credentials");
       }
     } catch (err) {
-      console.error("Error during sign-in:", err);
+      console.error("Error during sign-in : ", err);
       setErrorMessage("An error occurred during sign-in. Please try again.");
     } finally {
       setLoading(false);

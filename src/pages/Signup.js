@@ -1,12 +1,15 @@
-import React, { useState, useContext } from "react";
+import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 import { AuthContext } from "../context/AuthContext";
 
-// import { ToastContainer, toast } from 'react-toastify';
-// import 'react-toastify/dist/ReactToastify.css';
-
 const Signup = () => {
-  const { login } = useContext(AuthContext);
+  const { login, setToken } = useContext(AuthContext);
+
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     password: "",
@@ -22,7 +25,7 @@ const Signup = () => {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    console.log(formData);
+    setLoading(true);
 
     const url = `${process.env.REACT_APP_CC_API}/signup`;
     try {
@@ -34,22 +37,36 @@ const Signup = () => {
 
       const response = await data.json();
       if (response.token) {
-        login(data.token);
-        
+        setToken(response.token);
+        localStorage.setItem("token", response.token);
+        login(response.token);
+
+        toast.success("Signup successful! Redirecting to your dashboard...", {
+          position: "top-center",
+          autoClose: 2000,
+        });
+
         setTimeout(() => {
           navigate("/dashboard");
         }, 2000);
       } else {
-        console.error("Signup failed:", response.message);
-        alert("fail: ", response.message);
+        toast.error(response.message || "Failed to signup.", {
+          position: "top-center",
+        });
       }
     } catch (error) {
-      console.error("Error during signup:", error);
+      toast.error("Error during signup!", {
+        position: "top-center",
+      });
+      console.error("Error during signup : ", error);
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background text-foreground transition-colors duration-300 font-inter px-6">
+      <ToastContainer />
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Sign Up</h1>
@@ -134,10 +151,37 @@ const Signup = () => {
             </div>
             <div className="flex items-center py-2 px-6">
               <button
-                type="submit"
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-black text-white h-10 px-4 py-2 w-full disabled:opacity-50 transition-colors duration-200 hover:bg-gray-800 active:bg-gray-900"
+                disabled={loading}
+                type="submit"
               >
-                Sign Up
+                {loading ? (
+                  <span className="flex items-center">
+                    <svg
+                      className="animate-spin h-5 w-5 mr-2 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8H4z"
+                      ></path>
+                    </svg>
+                    Signing Up...
+                  </span>
+                ) : (
+                  "Sign Up"
+                )}
               </button>
             </div>
           </form>

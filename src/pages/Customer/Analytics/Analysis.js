@@ -39,6 +39,7 @@ import { getCategoryData } from "../../../utils/productUtils";
 import { processAnalyticsData } from "../../../utils/productUtils";
 
 const COLORS = ["#FF6B6B", "#FFB4B4", "#4ECDC4", "#556FB5", "#9D8DF1"];
+const missingDataMessage = "No product tracking data available yet.";
 
 export default function Analysis() {
   const [refreshing, setRefreshing] = useState(false);
@@ -274,56 +275,70 @@ export default function Analysis() {
           <div className="p-6">
             <div className="flex flex-col lg:flex-row items-center">
               {/* Pie Chart */}
-              <div className="w-full lg:w-2/3 h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={120}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, percent }) => {
-                        const maxLen = 15;
-                        const displayName =
-                          name.length > maxLen
-                            ? name.slice(0, maxLen).trim() + "…"
-                            : name;
-                        return `${displayName} ${(percent * 100).toFixed(0)}%`;
-                      }}
-                      labelStyle={{ fontSize: 12 }}
-                    >
-                      {categoryData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={COLORS[index % COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip content={CustomTooltip} />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div className="w-full lg:w-2/3 h-80 flex items-center justify-center">
+                {categoryData.length === 0 ? (
+                  <span className="text-sm text-gray-500 dark:text-gray-400 text-center w-full">
+                    {missingDataMessage}
+                  </span>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, percent }) => {
+                          const maxLen = 15;
+                          const displayName =
+                            name.length > maxLen
+                              ? name.slice(0, maxLen).trim() + "…"
+                              : name;
+                          return `${displayName} ${(percent * 100).toFixed(
+                            0
+                          )}%`;
+                        }}
+                        labelStyle={{ fontSize: 12 }}
+                      >
+                        {categoryData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip content={CustomTooltip} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </div>
 
               {/* Legend */}
               <div className="w-full lg:w-1/3 lg:pl-6 mt-4 lg:mt-0">
                 <h4 className="text-lg font-semibold mb-4">Categories</h4>
                 <div className="space-y-2">
-                  {categoryData.map((item, index) => (
-                    <div key={index} className="flex items-center text-sm">
-                      <div
-                        className="w-4 h-4 rounded-full mr-3 flex-shrink-0"
-                        style={{
-                          backgroundColor: COLORS[index % COLORS.length],
-                        }}
-                      />
-                      <span className="truncate">
-                        {item.name} ({item.value})
-                      </span>
-                    </div>
-                  ))}
+                  {categoryData.length === 0 ? (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      No categories to display.
+                    </span>
+                  ) : (
+                    categoryData.map((item, index) => (
+                      <div key={index} className="flex items-center text-sm">
+                        <div
+                          className="w-4 h-4 rounded-full mr-3 flex-shrink-0"
+                          style={{
+                            backgroundColor: COLORS[index % COLORS.length],
+                          }}
+                        />
+                        <span className="truncate">
+                          {item.name} ({item.value})
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -346,6 +361,10 @@ export default function Analysis() {
               <div className="h-64 flex items-center justify-center">
                 {testLoading ? (
                   <Loading />
+                ) : analytics.averageDiscounts.length === 0 ? (
+                  <span className="text-sm text-gray-500 dark:text-gray-400 text-center w-full">
+                    {missingDataMessage}
+                  </span>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={analytics.averageDiscounts}>
@@ -373,6 +392,10 @@ export default function Analysis() {
               <div className="h-64 flex items-center justify-center">
                 {testLoading ? (
                   <Loading />
+                ) : analytics.topDiscounts.length === 0 ? (
+                  <span className="text-sm text-gray-500 dark:text-gray-400 text-center w-full">
+                    {missingDataMessage}
+                  </span>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={analytics.topDiscounts}>
@@ -403,6 +426,10 @@ export default function Analysis() {
             <div className="h-80 flex items-center justify-center">
               {testLoading ? (
                 <Loading />
+              ) : analytics.priceTrends.length === 0 ? (
+                <span className="text-sm text-gray-500 dark:text-gray-400 text-center w-full">
+                  {missingDataMessage}
+                </span>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={analytics.priceTrends}>

@@ -50,7 +50,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
-    setToken(storedToken);
+
+    if (storedToken) setToken(storedToken);
     setIsAuthenticated(!!storedToken);
 
     if (storedToken) {
@@ -77,11 +78,12 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider
       value={{
+        login,
+        logout,
         user,
         setUser,
         token,
-        login,
-        logout,
+        setToken,
         isAuthenticated,
         checkTokenExpiration,
       }}

@@ -40,14 +40,14 @@ import {
   fetchActivityData,
   fetchUpcomingSales,
   fetchTrendingProducts,
-  fetchCombinedTrackingPriceHistories
+  fetchCombinedTrackingPriceHistories,
 } from "../../services/authService";
 
 import {
   getEndDate,
   getStartDate,
   getCategoryData,
-  processAnalyticsData
+  processAnalyticsData,
 } from "../../utils/productUtils";
 
 import Loading from "../../components/Loading";
@@ -62,6 +62,8 @@ const COLORS = [
   "#A28EFF",
   "#FF6699",
 ];
+
+const missingDataMessage = "No tracking data available yet.";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -79,10 +81,14 @@ export default function Dashboard() {
     avgDiscount: 0,
   });
 
-  // Loading and user data
+  // Loading spinners
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(null);
+
+  // User account details
+  const [accountDetails, setAccountDetails] = useState(null);
+  const [accountError, setAccountError] = useState(null);
+  const { userId } = getUserFromToken();
 
   // Activity section
   const [activityData, setActivityData] = useState([]);
@@ -103,7 +109,18 @@ export default function Dashboard() {
   const [priceTrends, setPriceTrends] = useState([]);
   const [loadingTrends, setLoadingTrends] = useState(true);
 
-  const [testData, setTestData] = useState({});
+  const [aggregatedData, setAggregatedData] = useState({});
+
+  /* USER Management */
+
+  // Checking user auth status ...
+  useEffect(() => {
+    const user = getUserFromToken();
+
+    if (!user) {
+      navigate("/signin");
+    }
+  }, [navigate]);
 
   // Fetching user activity data ...
   useEffect(() => {
@@ -121,15 +138,31 @@ export default function Dashboard() {
     getActivity();
   }, []);
 
-  // Checking user auth status ...
+  // Fetching user account details ...
   useEffect(() => {
-    const user = getUserFromToken();
-    if (!user) {
-      navigate("/signin");
-    } else {
-      setUser(user);
+    const fetchAccountDetails = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.REACT_APP_CC_API}/account/${userId}`
+        );
+        const data = await response.json();
+
+        if (response.ok) {
+          setAccountDetails(data.payload);
+        } else {
+          setAccountError(data.message || "Failed to fetch account details.");
+        }
+      } catch (error) {
+        setAccountError("Error fetching account details.");
+      }
+    };
+
+    if (userId) {
+      fetchAccountDetails();
     }
-  }, [navigate]);
+  }, [userId]);
+
+  /* FETCHING Product Information */
 
   // Fetching tracking list data and compute stats ...
   useEffect(() => {
@@ -218,7 +251,9 @@ export default function Dashboard() {
     fetchTrending();
   }, []);
 
-  // TEST ...
+  /* AGGREGATION of Product Information */
+
+  // Fetch combined tracking price histories ...
   useEffect(() => {
     const fetchTestData = async () => {
       setLoadingTrends(true);
@@ -226,7 +261,7 @@ export default function Dashboard() {
       try {
         const data = await fetchCombinedTrackingPriceHistories();
 
-        if (data) setTestData(data);
+        if (data) setAggregatedData(data);
         else console.log(data);
       } catch (err) {
         setError(err.message || "Failed to fetch test data.");
@@ -246,11 +281,11 @@ export default function Dashboard() {
 
   // Fetching data for price trends ...
   useEffect(() => {
-    if (testData && Object.keys(testData).length > 0) {
-      const trendData = processAnalyticsData(testData);
+    if (aggregatedData && Object.keys(aggregatedData).length > 0) {
+      const trendData = processAnalyticsData(aggregatedData);
       setPriceTrends(trendData.priceTrends);
     }
-  }, [testData]);
+  }, [aggregatedData]);
 
   // Calculated stats ...
   const { totalProducts, totalSavings, avgDiscount } = stats;
@@ -418,7 +453,9 @@ export default function Dashboard() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold mb-1">
-                  Welcome back, {user.name}!
+                  {accountDetails
+                    ? `Welcome back, ${accountDetails.name}!`
+                    : "Welcome back!"}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Here's what's happening with your tracked products ...
@@ -520,6 +557,12 @@ export default function Dashboard() {
                       <div className="h-64 flex items-center justify-center">
                         {loadingTrends ? (
                           <Loading />
+                        ) : priceTrends.length === 0 ? (
+                          <div className="flex flex-1 items-center justify-center h-full">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                              No price trend data available yet.
+                            </span>
+                          </div>
                         ) : (
                           <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={priceTrends}>
@@ -562,30 +605,36 @@ export default function Dashboard() {
                     </div>
                     <div className="p-4">
                       <div className="h-64 overflow-y-auto">
-                        <ul className="space-y-[1.35rem]">
-                          {trackingItems.slice(0, 5).map((item, index) => (
-                            <li
-                              key={item._id}
-                              className="flex items-center space-x-3"
-                            >
-                              <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 rounded">
-                                #{index + 1}
-                              </span>
-                              <div className="flex-1">
-                                <p className="font-medium">
-                                  {item.productTitle.split("|")[0].trim()}
-                                </p>
-                                <p className="text-sm text-orange-500">
-                                  Saved ₹
-                                  {Math.max(
-                                    item.currentPrice - item.hitPrice,
-                                    0
-                                  )}
-                                </p>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
+                        {trackingItems.length === 0 ? (
+                          <div className="flex items-center justify-center h-full text-sm text-gray-500 dark:text-gray-400">
+                            No tracked products found.
+                          </div>
+                        ) : (
+                          <ul className="space-y-[1.35rem]">
+                            {trackingItems.slice(0, 5).map((item, index) => (
+                              <li
+                                key={item._id}
+                                className="flex items-center space-x-3"
+                              >
+                                <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 rounded">
+                                  #{index + 1}
+                                </span>
+                                <div className="flex-1">
+                                  <p className="font-medium">
+                                    {item.productTitle.split("|")[0].trim()}
+                                  </p>
+                                  <p className="text-sm text-orange-500">
+                                    Saved ₹
+                                    {Math.max(
+                                      item.currentPrice - item.hitPrice,
+                                      0
+                                    )}
+                                  </p>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -754,49 +803,55 @@ export default function Dashboard() {
                         Tracking by Category
                       </h3>
                     </div>
-                    <div className="p-4 h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={categoryData}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                            label={({ name, percent }) => {
-                              const maxLen = 15;
-                              const displayName =
-                                name.length > maxLen
-                                  ? name.slice(0, maxLen).trim() + "…"
-                                  : name;
+                    <div className="p-4 h-80 flex items-center justify-center">
+                      {categoryData.length === 0 ? (
+                        <span className="text-sm text-gray-500 dark:text-gray-400 text-center w-full">
+                          {missingDataMessage}
+                        </span>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={categoryData}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="value"
+                              label={({ name, percent }) => {
+                                const maxLen = 15;
+                                const displayName =
+                                  name.length > maxLen
+                                    ? name.slice(0, maxLen).trim() + "…"
+                                    : name;
 
-                              return `${displayName.replace(
-                                /\w\S*/g,
-                                (text) =>
-                                  text.charAt(0).toUpperCase() +
-                                  text.substring(1).toLowerCase()
-                              )} ${(percent * 100).toFixed(0)}%`;
-                            }}
-                          >
-                            {categoryData.map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={COLORS[index % COLORS.length]}
-                              />
-                            ))}
-                          </Pie>
-                          <Tooltip content={CustomTooltip} />
-                          <Legend
-                            verticalAlign="middle"
-                            align="right"
-                            layout="vertical"
-                            iconType="circle"
-                            content={CustomLegend}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
+                                return `${displayName.replace(
+                                  /\w\S*/g,
+                                  (text) =>
+                                    text.charAt(0).toUpperCase() +
+                                    text.substring(1).toLowerCase()
+                                )} ${(percent * 100).toFixed(0)}%`;
+                              }}
+                            >
+                              {categoryData.map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS[index % COLORS.length]}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip content={CustomTooltip} />
+                            <Legend
+                              verticalAlign="middle"
+                              align="right"
+                              layout="vertical"
+                              iconType="circle"
+                              content={CustomLegend}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      )}
                     </div>
                   </div>
                 </div>

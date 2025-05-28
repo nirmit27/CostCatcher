@@ -66,10 +66,17 @@ const recentAlerts = [
 export default function Navbar() {
   const navigate = useNavigate();
 
+  // User account details
+  const [accountDetails, setAccountDetails] = useState(null);
+  const [accountError, setAccountError] = useState(null);
+
+  // Get userId safely
+  const userTokenData = getUserFromToken();
+  const userId = userTokenData ? userTokenData.userId : null;
+
   // Contexts
   const { isAuthenticated, logout, user, token } = useContext(AuthContext);
   const { theme, toggleTheme } = useContext(ThemeContext);
-
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -89,6 +96,33 @@ export default function Navbar() {
   const [activityData, setActivityData] = useState([]);
   const [errorActivity, setErrorActivity] = useState(null);
   const [loadingActivity, setLoadingActivity] = useState(true);
+
+  // Fetching user account details ...
+  useEffect(() => {
+    const fetchAccountDetails = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.REACT_APP_CC_API}/account/${userId}`
+        );
+        const data = await response.json();
+
+        if (response.ok) {
+          setAccountDetails(data.payload);
+        } else {
+          setAccountError(data.message || "Failed to fetch account details.");
+        }
+      } catch (error) {
+        setAccountError("Error fetching account details.");
+      }
+    };
+
+    if (userId) {
+      fetchAccountDetails();
+    } else {
+      setAccountDetails(null); // Clear details if logged out
+      setAccountError(null);
+    }
+  }, [userId]);
 
   // Fetch notifications/activity
   useEffect(() => {
@@ -391,7 +425,7 @@ export default function Navbar() {
                 aria-label="User Menu"
               >
                 <Avatar
-                  name={user?.name || "User"}
+                  name={accountDetails?.name || "User"}
                   size="32"
                   round={true}
                   color="#FF6B6B"
@@ -403,11 +437,13 @@ export default function Navbar() {
                 <div className="absolute right-0 mt-[270px] w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
                   <div className="p-3 border-b border-gray-200 dark:border-gray-700">
                     {(() => {
-                      return user.name && user.email ? (
+                      return accountDetails.name && accountDetails.email ? (
                         <>
-                          <p className="text-sm font-medium">{user.name}</p>
+                          <p className="text-sm font-medium">
+                            {accountDetails.name}
+                          </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {user.email}
+                            {accountDetails.email}
                           </p>
                         </>
                       ) : (
