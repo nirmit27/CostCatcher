@@ -4,12 +4,16 @@ import { getAmazonData } from "../middleware/getAmazonData";
 export const fetchProductData = async (productId) => {
   try {
     const data = await getAmazonData(productId);
-    return { data, error: null };
+    if (data) {
+      return { data, error: null };
+    } else {
+      return { data: null, error: "Product not found or incomplete data." };
+    }
   } catch (error) {
     console.error("Error fetching product data : ", error);
     return {
       data: null,
-      error: error.message || "Failed to fetch product data.",
+      error: error?.message || "Failed to fetch product data.",
     };
   }
 };

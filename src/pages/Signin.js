@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import { useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -30,7 +30,7 @@ const Signin = () => {
         login(data.token);
         navigate("/dashboard");
       } else {
-        setErrorMessage(data.message || "Invalid credentials");
+        setErrorMessage(data.message || "Invalid credentials.");
       }
     } catch (err) {
       console.error("Error during sign-in : ", err);

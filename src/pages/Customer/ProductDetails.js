@@ -6,13 +6,12 @@ import {
   Trash2,
   Calendar,
   ArrowLeft,
+  BarChart3,
   TrendingUp,
   ShoppingBag,
   ExternalLink,
   TrendingDown,
   AlertCircle,
-  BarChart3,
-  RefreshCw,
 } from "lucide-react";
 import {
   Area,
@@ -31,6 +30,10 @@ import Loading from "../../components/Loading";
 import { AuthContext } from "../../context/AuthContext";
 import placeholder from "../../components/assets/placeholder.svg";
 
+import { fetchProductData } from "../../api/productAPI";
+import { extractProductID } from "../../utils/productUtils";
+// import { getAmazonData } from "../../middleware/getAmazonData";
+
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -39,11 +42,13 @@ const ProductDetails = () => {
   const [error, setError] = useState(null);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [priceHistory, setPriceHistory] = useState([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [priceHistory, setPriceHistory] = useState([]);
   const [priceHistoryLoading, setPriceHistoryLoading] = useState(true);
 
+  /*
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
@@ -56,6 +61,76 @@ const ProductDetails = () => {
           setProduct(data);
           const priceData = data["priceHistory"];
 
+          if (
+            response.ok &&
+            priceData &&
+            Array.isArray(priceData) &&
+            priceData.length > 0
+          ) {
+            const transformedData = priceData.map((item, index) => ({
+              date: new Date(item.time).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              }),
+              dealPrice: Number.parseFloat(item.deal_price),
+              originalPrice: Number.parseFloat(item.original_price),
+              discount: Number.parseFloat(item.discount),
+              timestamp: item.time,
+            }));
+            setPriceHistory(transformedData);
+          }
+        } else {
+          setPriceHistory([]);
+          setError(data.message || "Failed to fetch product details.");
+        }
+      } catch (err) {
+        setError("Error fetching product details.");
+      } finally {
+        setLoading(false);
+        setPriceHistoryLoading(false);
+      }
+    };
+
+    fetchProductDetails();
+  }, [id, token]);
+  */
+
+  useEffect(() => {
+    const fetchProductDetails = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.REACT_APP_CC_API}/tracklist/products/${id}`
+        );
+        const data = await response.json();
+
+        if (response.ok) {
+          const productLink = data.productLink;
+          let amazonData = null;
+          let amazonError = null;
+
+          if (productLink) {
+            const productId = extractProductID(productLink);
+            if (productId) {
+              const { data: fetchedData, error: fetchError } =
+                await fetchProductData(productId);
+              
+              amazonData = fetchedData;
+              amazonError = fetchError;
+            }
+          }
+
+          setProduct({
+            ...data,
+            ...amazonData,
+            productTitle: data.productTitle || amazonData?.title,
+            currentPrice: data.currentPrice || amazonData?.deal_price,
+            hitPrice: data.hitPrice,
+            imageLink: amazonData?.image_url,
+            productLink: data.productLink || amazonData?.product_url,
+            category: data.category || amazonData?.category,
+          });
+
+          const priceData = data["priceHistory"];
           if (
             response.ok &&
             priceData &&
@@ -194,19 +269,17 @@ const ProductDetails = () => {
           <p className="text-center text-gray-600 dark:text-gray-400">
             {error}
           </p>
-          <button
-            onClick={() => navigate("/")}
-            className="mt-6 w-full bg-[#FF6B6B] hover:bg-[#ff5252] text-white font-medium py-2 px-4 rounded-md"
-          >
-            Go Back Home
-          </button>
+          <Link to="/trackinglist">
+            <button className="mt-6 w-full bg-[#FF6B6B] hover:bg-[#ff5252] text-white font-medium py-2 px-4 rounded-md">
+              Return
+            </button>
+          </Link>
         </div>
       </div>
     );
   }
 
   if (!product) return null;
-  const imageUrl = product.imageLink || placeholder;
 
   // Product statistics
   const priceDifference = product.currentPrice - product.hitPrice;
@@ -240,7 +313,7 @@ const ProductDetails = () => {
             {/* Product Image */}
             <div className="flex justify-center items-center">
               <img
-                src={imageUrl || "../../components/assets/pageHolder.svg"}
+                src={product.imageLink || placeholder}
                 alt={product.productTitle}
                 className="max-h-96 w-full object-contain rounded-lg shadow-md"
                 onError={(e) =>
