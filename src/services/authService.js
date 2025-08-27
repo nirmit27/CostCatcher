@@ -3,14 +3,13 @@ import { jwtDecode } from "jwt-decode";
 // Extracting user details from JWT ...
 export const getUserFromToken = () => {
   const token = localStorage.getItem("token");
-  if (!token) {
+  if (!token || token === "undefined" || token.split(".").length !== 3) {
     return null;
   }
 
   try {
     const decoded = jwtDecode(token);
     const { name, email, userId } = decoded;
-
     return { name, email, userId };
   } catch (error) {
     console.error("Invalid token : ", error);
