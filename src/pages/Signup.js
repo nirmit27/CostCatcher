@@ -34,8 +34,8 @@ const Signup = () => {
 
       const response = await data.json();
       if (response.token) {
-        login(data.token);
-        
+        login(response.token);
+
         setTimeout(() => {
           navigate("/dashboard");
         }, 2000);
